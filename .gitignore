@@ -1,0 +1,50 @@
+# Build directories
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.claude/
+
+# ROS2
+*.log
+*.bag
+*.db3
+
+# Compiled
+*.o
+*.so
+*.a
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Temporary
+*.tmp
+*.temp
+
+# 其他工作区
+opensource_patrol/
+opensource_ws/
+m-explore-ros2-main/
+m-explore-ros2-main.zip
+patrol_output/
+
+# 临时文件
+frames_*.gv
+frames_*.pdf
+docs/
