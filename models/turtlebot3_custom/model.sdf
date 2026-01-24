@@ -727,12 +727,11 @@
       <pose>0.05 0 0 0 0 0</pose>
     </joint>
 
-    <!-- 升降杆位置控制器 -->
-    <plugin name="lift_joint_controller" filename="libgazebo_ros_joint_pose_trajectory.so">
-      <ros>
-        <remapping>set_joint_trajectory:=lift_controller/command</remapping>
-      </ros>
-      <update_rate>50</update_rate>
+    <!-- ros2_control 升降杆控制器 -->
+    <plugin name="gazebo_ros2_control" filename="libgazebo_ros2_control.so">
+      <robot_param>robot_description</robot_param>
+      <robot_param_node>robot_state_publisher</robot_param_node>
+      <parameters>/mnt/d/TbbRobot/config/lift_controllers.yaml</parameters>
     </plugin>
 
   </model>

@@ -637,25 +637,20 @@
             moveToNextWaypoint();
         }
 
-        // 移动升降杆 - 使用 apply_joint_effort 服务
-        let liftEffortService = null;
-        let clearEffortService = null;
-        let liftControlInterval = null;
+        // 移动升降杆 - 使用 ros2_control JointTrajectoryController
+        let liftTrajectoryTopic = null;
         let targetLiftHeight = 0;
         let targetTiltAngle = 0;
 
         function initLiftServices() {
-            liftEffortService = new ROSLIB.Service({
+            // 创建轨迹话题发布器 (ros2_control JointTrajectoryController)
+            liftTrajectoryTopic = new ROSLIB.Topic({
                 ros: ros,
-                name: '/apply_joint_effort',
-                serviceType: 'gazebo_msgs/srv/ApplyJointEffort'
+                name: '/lift_controller/joint_trajectory',
+                messageType: 'trajectory_msgs/JointTrajectory'
             });
-            clearEffortService = new ROSLIB.Service({
-                ros: ros,
-                name: '/clear_joint_efforts',
-                serviceType: 'gazebo_msgs/srv/JointRequest'
-            });
-            console.log('升降杆服务已初始化');
+            liftTrajectoryTopic.advertise();
+            console.log('升降杆 ros2_control 接口已初始化');
         }
 
         function moveLift(height, tilt) {
@@ -666,91 +661,64 @@
 
                 console.log('目标: lift=' + targetLiftHeight.toFixed(2) + 'm, tilt=' + targetTiltAngle.toFixed(2) + 'rad');
 
-                // 停止之前的控制循环
-                if (liftControlInterval) {
-                    clearInterval(liftControlInterval);
+                if (!liftTrajectoryTopic) {
+                    console.error('升降杆控制器未初始化');
+                    resolve();
+                    return;
                 }
 
-                // PID 控制参数
-                const liftKp = 50.0;
-                const liftKd = 30.0;
-                const gravityComp = 13.0;
-                const tiltKp = 10.0;
-                const tiltKd = 3.0;
-                let lastLiftError = 0;
-                let lastTiltError = 0;
-                let stableCount = 0;
+                // 计算运动时间 (根据位移大小，速度约 0.5m/s)
+                const liftDistance = Math.abs(targetLiftHeight - currentLiftHeight);
+                const tiltDistance = Math.abs(targetTiltAngle - currentTiltAngle);
+                const durationSec = Math.max(2.0, Math.max(liftDistance / 0.5, tiltDistance / 0.5));
 
-                // 启动控制循环 (50Hz)
-                liftControlInterval = setInterval(() => {
-                    // 升降杆 PD 控制
-                    const liftError = targetLiftHeight - currentLiftHeight;
-                    const liftDeriv = liftError - lastLiftError;
-                    let liftEffort = liftKp * liftError + liftKd * liftDeriv + gravityComp;
-                    liftEffort = Math.max(-50, Math.min(100, liftEffort));
-                    lastLiftError = liftError;
-
-                    // 俯仰 PD 控制
-                    const tiltError = targetTiltAngle - currentTiltAngle;
-                    const tiltDeriv = tiltError - lastTiltError;
-                    let tiltEffort = tiltKp * tiltError + tiltKd * tiltDeriv;
-                    tiltEffort = Math.max(-10, Math.min(10, tiltEffort));
-                    lastTiltError = tiltError;
-
-                    // 发送力矩
-                    applyJointEffort('turtlebot3_custom::lift_joint', liftEffort);
-                    applyJointEffort('turtlebot3_custom::tilt_joint', tiltEffort);
-
-                    // 检查是否到达目标
-                    if (Math.abs(liftError) < 0.05 && Math.abs(tiltError) < 0.05) {
-                        stableCount++;
-                        if (stableCount > 20) { // 稳定 400ms
-                            console.log('升降杆到达目标位置');
-                            // 保持力矩以对抗重力，不停止控制
+                // 创建 JointTrajectory 消息
+                const trajectory = new ROSLIB.Message({
+                    header: {
+                        stamp: { sec: 0, nanosec: 0 },
+                        frame_id: ''
+                    },
+                    joint_names: ['lift_joint', 'tilt_joint'],
+                    points: [{
+                        positions: [targetLiftHeight, targetTiltAngle],
+                        velocities: [0.0, 0.0],
+                        accelerations: [],
+                        effort: [],
+                        time_from_start: {
+                            sec: Math.floor(durationSec),
+                            nanosec: Math.floor((durationSec % 1) * 1e9)
                         }
-                    } else {
-                        stableCount = 0;
+                    }]
+                });
+
+                // 发布轨迹命令
+                liftTrajectoryTopic.publish(trajectory);
+                console.log('发送轨迹命令, 预计时间: ' + durationSec.toFixed(1) + 's');
+
+                // 等待运动完成
+                const checkInterval = setInterval(() => {
+                    const liftError = Math.abs(currentLiftHeight - targetLiftHeight);
+                    const tiltError = Math.abs(currentTiltAngle - targetTiltAngle);
+
+                    if (liftError < 0.05 && tiltError < 0.05) {
+                        clearInterval(checkInterval);
+                        console.log('升降杆到达目标位置');
+                        resolve();
                     }
-                }, 20);
+                }, 100);
 
-                // 超时后 resolve
+                // 超时保护
                 setTimeout(() => {
+                    clearInterval(checkInterval);
+                    console.log('升降杆运动完成');
                     resolve();
-                }, 4000);
-            });
-        }
-
-        function applyJointEffort(jointName, effort) {
-            if (!liftEffortService) return;
-
-            const request = new ROSLIB.ServiceRequest({
-                joint_name: jointName,
-                effort: effort,
-                start_time: { sec: 0, nanosec: 0 },
-                duration: { sec: 0, nanosec: 50000000 }
-            });
-
-            liftEffortService.callService(request, function(result) {
-                // 静默处理
+                }, (durationSec + 2) * 1000);
             });
         }
 
         function stopLiftControl() {
-            if (liftControlInterval) {
-                clearInterval(liftControlInterval);
-                liftControlInterval = null;
-            }
-            // 清除力矩
-            if (clearEffortService) {
-                clearEffortService.callService(
-                    new ROSLIB.ServiceRequest({ joint_name: 'turtlebot3_custom::lift_joint' }),
-                    function(result) {}
-                );
-                clearEffortService.callService(
-                    new ROSLIB.ServiceRequest({ joint_name: 'turtlebot3_custom::tilt_joint' }),
-                    function(result) {}
-                );
-            }
+            // ros2_control 位置控制模式下，关节会自动保持位置
+            console.log('升降杆控制已停止');
         }
 
         // 辅助函数：等待
