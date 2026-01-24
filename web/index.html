@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TurtleBot3 巡检控制台</title>
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        .header {
+            background: rgba(0,0,0,0.3);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 24px; }
+        .status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .status.connected { background: #00c853; }
+        .status.disconnected { background: #ff5252; }
+        .main-container {
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+            height: calc(100vh - 70px);
+        }
+        .left-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .right-panel {
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .panel {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 15px;
+        }
+        .panel h3 {
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: #4299e1;
+        }
+        .camera-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .camera-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .camera-offline {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+        }
+        .controller {
+            display: grid;
+            grid-template-columns: repeat(3, 60px);
+            grid-template-rows: repeat(3, 60px);
+            gap: 8px;
+            justify-content: center;
+        }
+        .btn {
+            width: 60px;
+            height: 60px;
+            border: none;
+            border-radius: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            background: #2d3748;
+            color: #fff;
+            transition: all 0.15s;
+        }
+        .btn:hover { background: #4a5568; }
+        .btn:active, .btn.active { background: #4299e1; }
+        .btn.stop { background: #e53e3e; }
+        .empty { visibility: hidden; }
+
+        /* 巡检点样式 */
+        .waypoint-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .waypoint-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin: 5px 0;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            font-size: 13px;
+        }
+        .waypoint-item.active {
+            background: #4299e1;
+        }
+        .waypoint-item .delete-btn {
+            background: #e53e3e;
+            border: none;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .add-waypoint {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .add-waypoint input {
+            width: 70px;
+            padding: 5px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            text-align: center;
+        }
+        .add-waypoint button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            background: #4299e1;
+            color: white;
+            cursor: pointer;
+        }
+        .patrol-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .patrol-controls button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .patrol-controls .start-btn {
+            background: #00c853;
+            color: white;
+        }
+        .patrol-controls .stop-btn {
+            background: #e53e3e;
+            color: white;
+        }
+        .patrol-status {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            font-size: 13px;
+        }
+        .preset-btns {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .preset-btns button {
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            background: #2d3748;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .preset-btns button:hover {
+            background: #4a5568;
+        }
+        .info-text {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>TurtleBot3 巡检控制台</h1>
+        <div id="status" class="status disconnected">未连接</div>
+    </div>
+
+    <div class="main-container">
+        <div class="left-panel">
+            <div class="panel">
+                <h3>摄像头画面</h3>
+                <div class="camera-container">
+                    <img id="cameraFeed" src="" alt="Camera">
+                    <div class="camera-offline" id="cameraOffline">摄像头加载中...</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>巡检点管理</h3>
+                <div class="waypoint-list" id="waypointList">
+                    <!-- 巡检点列表 -->
+                </div>
+                <div class="add-waypoint">
+                    <input type="number" id="wpX" placeholder="X" step="0.1">
+                    <input type="number" id="wpY" placeholder="Y" step="0.1">
+                    <input type="number" id="wpYaw" placeholder="角度°" step="15" style="width:60px;">
+                    <button onclick="addWaypoint()">添加</button>
+                </div>
+                <div class="preset-btns">
+                    <button onclick="addPresetWaypoints()">加载预设路线</button>
+                    <button onclick="clearWaypoints()">清空所有</button>
+                    <button onclick="getCurrentPose()">获取当前位置</button>
+                    <button onclick="setInitialPose()">设置初始位姿</button>
+                </div>
+                <div class="patrol-controls">
+                    <button class="start-btn" onclick="startPatrol()">开始巡检</button>
+                    <button class="stop-btn" onclick="stopPatrol()">停止巡检</button>
+                </div>
+                <div class="patrol-status" id="patrolStatus">
+                    状态: 待命 | 当前点: - | 循环: 0
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="panel">
+                <h3>手动控制</h3>
+                <div class="controller">
+                    <div class="empty"></div>
+                    <button class="btn" id="forward" data-linear="1" data-angular="0">↑</button>
+                    <div class="empty"></div>
+                    <button class="btn" id="left" data-linear="0" data-angular="1">←</button>
+                    <button class="btn stop" id="stop">停</button>
+                    <button class="btn" id="right" data-linear="0" data-angular="-1">→</button>
+                    <div class="empty"></div>
+                    <button class="btn" id="backward" data-linear="-1" data-angular="0">↓</button>
+                    <div class="empty"></div>
+                </div>
+                <p class="info-text">键盘: WASD/方向键 移动, 空格 停止</p>
+            </div>
+
+            <div class="panel">
+                <h3>机器人状态</h3>
+                <div id="robotStatus">
+                    <p>位置: <span id="posX">-</span>, <span id="posY">-</span></p>
+                    <p>朝向: <span id="posTheta">-</span></p>
+                    <p>速度: <span id="velLinear">0.00</span> m/s</p>
+                    <p>升降杆: <span id="liftHeight">0.00</span>m</p>
+                    <p>俯仰角: <span id="tiltAngle">0.0</span></p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>巡检摄像头</h3>
+                <div class="camera-container" style="height:180px;">
+                    <img id="inspectionCamera" src="" alt="Inspection Camera">
+                    <div class="camera-offline" id="inspectionOffline">巡检摄像头</div>
+                </div>
+                <div class="preset-btns" style="margin-top:10px;">
+                    <button onclick="testRaiseLift()">测试升杆</button>
+                    <button onclick="testLowerLift()">测试收杆</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 配置
+        const ROSBRIDGE_URL = 'ws://localhost:9090';
+        const VIDEO_SERVER_URL = 'http://localhost:8080';
+        const CAMERA_TOPIC = '/camera/image_raw';
+
+        // 状态
+        let ros = null;
+        let cmdVelTopic = null;
+        let goalPoseTopic = null;
+        let navClient = null;
+        let waypointClient = null;
+        let linearSpeed = 0.2;
+        let angularSpeed = 0.5;
+        let currentLinear = 0;
+        let currentAngular = 0;
+        let publishInterval = null;
+
+        // 巡检相关
+        let waypoints = [];
+        let isPatrolling = false;
+        let currentWaypointIndex = 0;
+        let patrolLoop = 0;
+
+        // 升降杆控制相关
+        let liftClient = null;       // 升降杆轨迹发布器
+        let currentLiftHeight = 0;   // 当前升降杆高度
+        let currentTiltAngle = 0;    // 当前俯仰角
+        let isLiftMoving = false;    // 升降杆是否正在运动
+        let inspectionPhase = 'idle'; // 巡检阶段: idle, navigating, raising, capturing, lowering
+
+        // DOM元素
+        const statusEl = document.getElementById('status');
+        const cameraFeed = document.getElementById('cameraFeed');
+        const cameraOffline = document.getElementById('cameraOffline');
+        const waypointList = document.getElementById('waypointList');
+        const patrolStatusEl = document.getElementById('patrolStatus');
+
+        // 初始化摄像头
+        function initCamera() {
+            const streamUrl = `${VIDEO_SERVER_URL}/stream?topic=${CAMERA_TOPIC}&type=mjpeg&quality=80`;
+            cameraFeed.src = streamUrl;
+            cameraFeed.onload = () => { cameraOffline.style.display = 'none'; };
+            cameraFeed.onerror = () => {
+                cameraOffline.textContent = '摄像头离线';
+                cameraOffline.style.display = 'block';
+                setTimeout(initCamera, 3000);
+            };
+
+            // 初始化巡检摄像头
+            initInspectionCamera();
+        }
+
+        // 初始化巡检摄像头 (升降杆上的相机)
+        function initInspectionCamera() {
+            const inspectionFeed = document.getElementById('inspectionCamera');
+            const inspectionOffline = document.getElementById('inspectionOffline');
+            const streamUrl = `${VIDEO_SERVER_URL}/stream?topic=/inspection_camera/image_raw&type=mjpeg&quality=80`;
+            inspectionFeed.src = streamUrl;
+            inspectionFeed.onload = () => { inspectionOffline.style.display = 'none'; };
+            inspectionFeed.onerror = () => {
+                inspectionOffline.textContent = '巡检摄像头离线';
+                inspectionOffline.style.display = 'block';
+                setTimeout(initInspectionCamera, 5000);
+            };
+        }
+
+        // 测试升杆
+        function testRaiseLift() {
+            console.log('测试升杆: 1.8m, -0.2rad');
+            moveLift(1.8, -0.2);
+        }
+
+        // 测试收杆
+        function testLowerLift() {
+            console.log('测试收杆: 0m, 0rad');
+            moveLift(0, 0);
+        }
+
+        // 连接ROS
+        function connect() {
+            statusEl.textContent = '连接中...';
+            statusEl.className = 'status';
+            statusEl.style.background = '#ffc107';
+
+            ros = new ROSLIB.Ros({ url: ROSBRIDGE_URL });
+
+            ros.on('connection', () => {
+                statusEl.textContent = '已连接';
+                statusEl.className = 'status connected';
+                initTopics();
+                publishInterval = setInterval(publishVelocity, 100);
+            });
+
+            ros.on('error', () => {
+                statusEl.textContent = '连接错误 - 5秒后重试...';
+                statusEl.className = 'status disconnected';
+                setTimeout(connect, 5000);
+            });
+
+            ros.on('close', () => {
+                statusEl.textContent = '连接断开 - 自动重连中...';
+                statusEl.className = 'status disconnected';
+                if (publishInterval) clearInterval(publishInterval);
+                goalPoseTopic = null;
+                // 3秒后自动重连
+                setTimeout(connect, 3000);
+            });
+        }
+
+        // 初始化话题
+        function initTopics() {
+            // 速度控制
+            cmdVelTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: '/cmd_vel',
+                messageType: 'geometry_msgs/Twist'
+            });
+
+            // 导航目标 Topic (用于巡检)
+            goalPoseTopic = new ROSLIB.Topic({
+                ros: ros,
+                name: '/goal_pose',
+                messageType: 'geometry_msgs/PoseStamped'
+            });
+            goalPoseTopic.advertise();
+            console.log('goalPoseTopic 已初始化');
+
+            // 导航Action客户端
+            navClient = new ROSLIB.ActionClient({
+                ros: ros,
+                serverName: '/navigate_to_pose',
+                actionName: 'nav2_msgs/action/NavigateToPose'
+            });
+
+            // 订阅 /tf 话题，提取 map -> base_footprint 变换
+            // 存储 TF 变换链
+            const tfCache = {};
+
+            const tfSub = new ROSLIB.Topic({
+                ros: ros,
+                name: '/tf',
+                messageType: 'tf2_msgs/TFMessage'
+            });
+
+            let debugCount = 0;
+            tfSub.subscribe((msg) => {
+                // 缓存所有变换
+                msg.transforms.forEach(t => {
+                    const key = t.header.frame_id + '->' + t.child_frame_id;
+                    tfCache[key] = t;
+                });
+
+                // 每500次打印一次调试信息 (大约每10秒)
+                debugCount++;
+                if (debugCount % 500 === 1) {
+                    console.log('=== TF 调试信息 ===');
+                    console.log('TF Cache keys:', Object.keys(tfCache));
+                    const mapToOdom = tfCache['map->odom'];
+                    const odomToBase = tfCache['odom->base_footprint'];
+                    if (mapToOdom) {
+                        const t = mapToOdom.transform.translation;
+                        console.log('map->odom 位移: x=' + t.x.toFixed(3) + ', y=' + t.y.toFixed(3));
+                    }
+                    if (odomToBase) {
+                        const t = odomToBase.transform.translation;
+                        console.log('odom->base_footprint 位移: x=' + t.x.toFixed(3) + ', y=' + t.y.toFixed(3));
+                    }
+                }
+
+                // 计算 map -> base_footprint (通过 map->odom->base_footprint)
+                const mapToOdom = tfCache['map->odom'];
+                const odomToBase = tfCache['odom->base_footprint'];
+
+                if (mapToOdom && odomToBase) {
+                    // 组合变换: 先应用 map->odom，再应用 odom->base_footprint
+                    const result = multiplyTransforms(mapToOdom.transform, odomToBase.transform);
+                    const theta = Math.atan2(
+                        2*(result.rotation.w*result.rotation.z + result.rotation.x*result.rotation.y),
+                        1-2*(result.rotation.y*result.rotation.y + result.rotation.z*result.rotation.z)
+                    ) * 180 / Math.PI;
+
+                    document.getElementById('posX').textContent = result.translation.x.toFixed(2);
+                    document.getElementById('posY').textContent = result.translation.y.toFixed(2);
+                    document.getElementById('posTheta').textContent = theta.toFixed(1);
+
+                    // 每500次打印结果
+                    if (debugCount % 500 === 1) {
+                        console.log('最终位置: X=' + result.translation.x.toFixed(3) + ', Y=' + result.translation.y.toFixed(3));
+                    }
+                }
+            });
+
+            // 变换乘法: T_result = T1 * T2
+            function multiplyTransforms(t1, t2) {
+                // 四元数乘法
+                const q1 = t1.rotation;
+                const q2 = t2.rotation;
+                const qr = {
+                    w: q1.w*q2.w - q1.x*q2.x - q1.y*q2.y - q1.z*q2.z,
+                    x: q1.w*q2.x + q1.x*q2.w + q1.y*q2.z - q1.z*q2.y,
+                    y: q1.w*q2.y - q1.x*q2.z + q1.y*q2.w + q1.z*q2.x,
+                    z: q1.w*q2.z + q1.x*q2.y - q1.y*q2.x + q1.z*q2.w
+                };
+
+                // 旋转 t2 的平移向量并加上 t1 的平移
+                const v2 = t2.translation;
+                const rotatedV2 = rotateVectorByQuaternion(v2, q1);
+
+                return {
+                    translation: {
+                        x: t1.translation.x + rotatedV2.x,
+                        y: t1.translation.y + rotatedV2.y,
+                        z: t1.translation.z + rotatedV2.z
+                    },
+                    rotation: qr
+                };
+            }
+
+            // 用四元数旋转向量
+            function rotateVectorByQuaternion(v, q) {
+                // v' = q * v * q^-1
+                const qv = { w: 0, x: v.x, y: v.y, z: v.z };
+                const qConj = { w: q.w, x: -q.x, y: -q.y, z: -q.z };
+
+                // q * qv
+                const temp = {
+                    w: q.w*qv.w - q.x*qv.x - q.y*qv.y - q.z*qv.z,
+                    x: q.w*qv.x + q.x*qv.w + q.y*qv.z - q.z*qv.y,
+                    y: q.w*qv.y - q.x*qv.z + q.y*qv.w + q.z*qv.x,
+                    z: q.w*qv.z + q.x*qv.y - q.y*qv.x + q.z*qv.w
+                };
+
+                // temp * qConj
+                return {
+                    x: temp.w*qConj.x + temp.x*qConj.w + temp.y*qConj.z - temp.z*qConj.y,
+                    y: temp.w*qConj.y - temp.x*qConj.z + temp.y*qConj.w + temp.z*qConj.x,
+                    z: temp.w*qConj.z + temp.x*qConj.y - temp.y*qConj.x + temp.z*qConj.w
+                };
+            }
+
+            // 订阅 /odom 获取实时速度
+            const odomSub = new ROSLIB.Topic({
+                ros: ros,
+                name: '/odom',
+                messageType: 'nav_msgs/Odometry'
+            });
+            odomSub.subscribe((msg) => {
+                const vel = msg.twist.twist.linear;
+                const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+                document.getElementById('velLinear').textContent = speed.toFixed(2);
+            });
+
+            // 订阅导航状态
+            const navStatusSub = new ROSLIB.Topic({
+                ros: ros,
+                name: '/navigate_to_pose/_action/status',
+                messageType: 'action_msgs/GoalStatusArray'
+            });
+            navStatusSub.subscribe((msg) => {
+                if (msg.status_list && msg.status_list.length > 0) {
+                    const lastStatus = msg.status_list[msg.status_list.length - 1];
+                    // status: 4 = SUCCEEDED, 5 = CANCELED, 6 = ABORTED
+                    if (lastStatus.status === 4 && isPatrolling && inspectionPhase === 'navigating') {
+                        console.log('导航完成，状态码:', lastStatus.status);
+                        onNavigationComplete();
+                    }
+                }
+            });
+
+            // 初始化升降杆力矩控制服务
+            initLiftServices();
+
+            // 订阅关节状态
+            const jointStateSub = new ROSLIB.Topic({
+                ros: ros,
+                name: '/joint_states',
+                messageType: 'sensor_msgs/JointState'
+            });
+            jointStateSub.subscribe((msg) => {
+                for (let i = 0; i < msg.name.length; i++) {
+                    if (msg.name[i] === 'lift_joint') {
+                        currentLiftHeight = msg.position[i];
+                        document.getElementById('liftHeight').textContent = currentLiftHeight.toFixed(2);
+                    } else if (msg.name[i] === 'tilt_joint') {
+                        currentTiltAngle = msg.position[i];
+                        document.getElementById('tiltAngle').textContent = (currentTiltAngle * 180 / Math.PI).toFixed(1) + '\u00B0';
+                    }
+                }
+            });
+        }
+
+        // 导航完成回调 - 商业化巡检流程
+        let lastCompletedGoalId = null;
+        function onNavigationComplete() {
+            if (!isPatrolling) return;
+
+            const wp = waypoints[currentWaypointIndex];
+
+            // 防止重复触发 (status 可能重复发送)
+            const goalId = currentWaypointIndex + '-' + patrolLoop;
+            if (lastCompletedGoalId === goalId) return;
+            lastCompletedGoalId = goalId;
+
+            console.log('到达巡检点: ' + wp.name + ' (' + wp.x + ', ' + wp.y + ')');
+            updatePatrolStatus('到达 ' + wp.name);
+
+            // 开始升降杆巡检流程
+            startInspectionSequence(wp);
+        }
+
+        // 巡检序列：升杆 -> 拍照 -> 收杆 -> 移动到下一点
+        async function startInspectionSequence(wp) {
+            if (!isPatrolling) return;
+
+            const needsLift = wp.liftHeight && wp.liftHeight > 0.1;
+
+            if (needsLift) {
+                // 1. 升杆
+                inspectionPhase = 'raising';
+                updatePatrolStatus('升杆中 ' + wp.name);
+                console.log('升降杆升起到 ' + wp.liftHeight + 'm, 俯仰角 ' + wp.tiltAngle + 'rad');
+                await moveLift(wp.liftHeight, wp.tiltAngle);
+
+                if (!isPatrolling) return;
+
+                // 2. 稳定等待 + 拍照
+                inspectionPhase = 'capturing';
+                updatePatrolStatus('拍照中 ' + wp.name);
+                console.log('正在拍摄仪表盘...');
+                await sleep(2000); // 稳定后拍照
+
+                if (!isPatrolling) return;
+
+                // 3. 收杆
+                inspectionPhase = 'lowering';
+                updatePatrolStatus('收杆中 ' + wp.name);
+                console.log('升降杆收回');
+                await moveLift(0, 0);
+
+                if (!isPatrolling) return;
+            } else {
+                // 不需要升降杆的点，只停留一下
+                await sleep(1000);
+            }
+
+            // 4. 移动到下一个点
+            moveToNextWaypoint();
+        }
+
+        // 移动升降杆 - 使用 apply_joint_effort 服务
+        let liftEffortService = null;
+        let clearEffortService = null;
+        let liftControlInterval = null;
+        let targetLiftHeight = 0;
+        let targetTiltAngle = 0;
+
+        function initLiftServices() {
+            liftEffortService = new ROSLIB.Service({
+                ros: ros,
+                name: '/apply_joint_effort',
+                serviceType: 'gazebo_msgs/srv/ApplyJointEffort'
+            });
+            clearEffortService = new ROSLIB.Service({
+                ros: ros,
+                name: '/clear_joint_efforts',
+                serviceType: 'gazebo_msgs/srv/JointRequest'
+            });
+            console.log('升降杆服务已初始化');
+        }
+
+        function moveLift(height, tilt) {
+            return new Promise((resolve) => {
+                // 限制范围
+                targetLiftHeight = Math.max(0, Math.min(2.0, height));
+                targetTiltAngle = Math.max(-1.57, Math.min(0.5, tilt));
+
+                console.log('目标: lift=' + targetLiftHeight.toFixed(2) + 'm, tilt=' + targetTiltAngle.toFixed(2) + 'rad');
+
+                // 停止之前的控制循环
+                if (liftControlInterval) {
+                    clearInterval(liftControlInterval);
+                }
+
+                // PID 控制参数
+                const liftKp = 50.0;
+                const liftKd = 30.0;
+                const gravityComp = 13.0;
+                const tiltKp = 10.0;
+                const tiltKd = 3.0;
+                let lastLiftError = 0;
+                let lastTiltError = 0;
+                let stableCount = 0;
+
+                // 启动控制循环 (50Hz)
+                liftControlInterval = setInterval(() => {
+                    // 升降杆 PD 控制
+                    const liftError = targetLiftHeight - currentLiftHeight;
+                    const liftDeriv = liftError - lastLiftError;
+                    let liftEffort = liftKp * liftError + liftKd * liftDeriv + gravityComp;
+                    liftEffort = Math.max(-50, Math.min(100, liftEffort));
+                    lastLiftError = liftError;
+
+                    // 俯仰 PD 控制
+                    const tiltError = targetTiltAngle - currentTiltAngle;
+                    const tiltDeriv = tiltError - lastTiltError;
+                    let tiltEffort = tiltKp * tiltError + tiltKd * tiltDeriv;
+                    tiltEffort = Math.max(-10, Math.min(10, tiltEffort));
+                    lastTiltError = tiltError;
+
+                    // 发送力矩
+                    applyJointEffort('turtlebot3_custom::lift_joint', liftEffort);
+                    applyJointEffort('turtlebot3_custom::tilt_joint', tiltEffort);
+
+                    // 检查是否到达目标
+                    if (Math.abs(liftError) < 0.05 && Math.abs(tiltError) < 0.05) {
+                        stableCount++;
+                        if (stableCount > 20) { // 稳定 400ms
+                            console.log('升降杆到达目标位置');
+                            // 保持力矩以对抗重力，不停止控制
+                        }
+                    } else {
+                        stableCount = 0;
+                    }
+                }, 20);
+
+                // 超时后 resolve
+                setTimeout(() => {
+                    resolve();
+                }, 4000);
+            });
+        }
+
+        function applyJointEffort(jointName, effort) {
+            if (!liftEffortService) return;
+
+            const request = new ROSLIB.ServiceRequest({
+                joint_name: jointName,
+                effort: effort,
+                start_time: { sec: 0, nanosec: 0 },
+                duration: { sec: 0, nanosec: 50000000 }
+            });
+
+            liftEffortService.callService(request, function(result) {
+                // 静默处理
+            });
+        }
+
+        function stopLiftControl() {
+            if (liftControlInterval) {
+                clearInterval(liftControlInterval);
+                liftControlInterval = null;
+            }
+            // 清除力矩
+            if (clearEffortService) {
+                clearEffortService.callService(
+                    new ROSLIB.ServiceRequest({ joint_name: 'turtlebot3_custom::lift_joint' }),
+                    function(result) {}
+                );
+                clearEffortService.callService(
+                    new ROSLIB.ServiceRequest({ joint_name: 'turtlebot3_custom::tilt_joint' }),
+                    function(result) {}
+                );
+            }
+        }
+
+        // 辅助函数：等待
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // 移动到下一个巡检点
+        function moveToNextWaypoint() {
+            if (!isPatrolling) return;
+
+            currentWaypointIndex++;
+            if (currentWaypointIndex >= waypoints.length) {
+                currentWaypointIndex = 0;
+                patrolLoop++;
+                console.log('完成一轮巡检，开始第 ' + (patrolLoop + 1) + ' 轮');
+            }
+            updateWaypointList();
+            navigateToWaypoint(currentWaypointIndex);
+        }
+
+        // 发布速度命令（手动控制）
+        function publishVelocity() {
+            if (!cmdVelTopic || isPatrolling) return;
+            const twist = new ROSLIB.Message({
+                linear: { x: currentLinear, y: 0, z: 0 },
+                angular: { x: 0, y: 0, z: currentAngular }
+            });
+            cmdVelTopic.publish(twist);
+            // 速度显示由 odom 订阅更新，不在这里覆盖
+        }
+
+        function setVelocity(linear, angular) {
+            currentLinear = linear * linearSpeed;
+            currentAngular = angular * angularSpeed;
+        }
+
+        function stopRobot() {
+            currentLinear = 0;
+            currentAngular = 0;
+        }
+
+        // 添加巡检点
+        function addWaypoint() {
+            const x = parseFloat(document.getElementById('wpX').value);
+            const y = parseFloat(document.getElementById('wpY').value);
+            const yawVal = document.getElementById('wpYaw').value;
+            const yaw = yawVal !== '' ? parseFloat(yawVal) : 0;
+            if (isNaN(x) || isNaN(y)) {
+                alert('请输入有效的坐标');
+                return;
+            }
+            waypoints.push({ x, y, yaw, name: `点${waypoints.length + 1}` });
+            updateWaypointList();
+            document.getElementById('wpX').value = '';
+            document.getElementById('wpY').value = '';
+            document.getElementById('wpYaw').value = '';
+        }
+
+        // 预设巡检路线 - 高压配电室 (25x20m)
+        // 柜子布局: 4排连续柜子, Y坐标: 8, 4, -4, -8 (每排8m长, 宽0.6m)
+        // 仪表盘高度: 柜子z=1.1, 仪表盘z=0.85相对柜子 -> 实际高度约1.95m
+        // 机器人高度约0.15m, 升降杆需升起约1.8m才能平视仪表盘
+        // liftHeight: 升降杆高度(m), tiltAngle: 俯仰角(rad, 负数向下)
+        // yaw: 0=朝右(东), 90=朝上(北), 180=朝左(西), -90=朝下(南)
+        function addPresetWaypoints() {
+            waypoints = [
+                // 第1排柜子 (Y=8), 标记在南面Y=7.69, 站在Y=6.7朝北(90°)
+                { x: -3, y: 6.7, yaw: 90, name: '1A', liftHeight: 1.8, tiltAngle: -0.2 },
+                { x: -1, y: 6.7, yaw: 90, name: '1B', liftHeight: 1.8, tiltAngle: -0.2 },
+                { x: 1, y: 6.7, yaw: 90, name: '1C', liftHeight: 1.8, tiltAngle: -0.2 },
+                { x: 3, y: 6.7, yaw: 90, name: '1D', liftHeight: 1.8, tiltAngle: -0.2 },
+                // 第2排柜子 (Y=4), 标记在Y=4.31, 站在Y=5.3朝南(-90°)
+                { x: 3, y: 5.3, yaw: -90, name: '2D', liftHeight: 1.8, tiltAngle: -0.2 },
+                { x: 1, y: 5.3, yaw: -90, name: '2C', liftHeight: 1.8, tiltAngle: -0.2 },
+                { x: -1, y: 5.3, yaw: -90, name: '2B', liftHeight: 1.8, tiltAngle: -0.2 },
+                { x: -3, y: 5.3, yaw: -90, name: '2A', liftHeight: 1.8, tiltAngle: -0.2 },
+                // 通道中间过渡 (不需要升降杆)
+                { x: -6, y: 0, yaw: -90, name: '通道', liftHeight: 0, tiltAngle: 0 },
+                // 第3排柜子 (Y=-4), 标记在Y=-3.69, 站在Y=-2.7朝南(-90°)
+                { x: -3, y: -2.7, yaw: -90, name: '3A', liftHeight: 1.8, tiltAngle: -0.2 },
+                { x: -1, y: -2.7, yaw: -90, name: '3B', liftHeight: 1.8, tiltAngle: -0.2 },
+                { x: 1, y: -2.7, yaw: -90, name: '3C', liftHeight: 1.8, tiltAngle: -0.2 },
+                { x: 3, y: -2.7, yaw: -90, name: '3D', liftHeight: 1.8, tiltAngle: -0.2 },
+                // 第4排柜子 (Y=-8), 标记在Y=-7.69, 站在Y=-6.7朝南(-90°)
+                { x: 3, y: -6.7, yaw: -90, name: '4D', liftHeight: 1.8, tiltAngle: -0.2 },
+                { x: 1, y: -6.7, yaw: -90, name: '4C', liftHeight: 1.8, tiltAngle: -0.2 },
+                { x: -1, y: -6.7, yaw: -90, name: '4B', liftHeight: 1.8, tiltAngle: -0.2 },
+                { x: -3, y: -6.7, yaw: -90, name: '4A', liftHeight: 1.8, tiltAngle: -0.2 },
+                // 返回起点 (不需要升降杆)
+                { x: -6, y: 0, yaw: 0, name: '返回', liftHeight: 0, tiltAngle: 0 }
+            ];
+            updateWaypointList();
+        }
+
+        // 清空巡检点
+        function clearWaypoints() {
+            waypoints = [];
+            updateWaypointList();
+        }
+
+        // 更新巡检点列表显示
+        function updateWaypointList() {
+            waypointList.innerHTML = waypoints.map((wp, i) => `
+                <div class="waypoint-item ${i === currentWaypointIndex && isPatrolling ? 'active' : ''}">
+                    <span>${wp.name}: (${wp.x.toFixed(2)}, ${wp.y.toFixed(2)}) ${wp.yaw !== undefined ? wp.yaw + '°' : ''}</span>
+                    <button class="delete-btn" onclick="deleteWaypoint(${i})">删除</button>
+                </div>
+            `).join('');
+        }
+
+        // 删除巡检点
+        function deleteWaypoint(index) {
+            waypoints.splice(index, 1);
+            updateWaypointList();
+        }
+
+        // 获取当前位置
+        function getCurrentPose() {
+            const x = document.getElementById('posX').textContent;
+            const y = document.getElementById('posY').textContent;
+            const theta = document.getElementById('posTheta').textContent;
+            if (x !== '-' && y !== '-') {
+                document.getElementById('wpX').value = x;
+                document.getElementById('wpY').value = y;
+                // 将当前朝向取整到最近的15度
+                if (theta !== '-') {
+                    const rounded = Math.round(parseFloat(theta) / 15) * 15;
+                    document.getElementById('wpYaw').value = rounded;
+                }
+            } else {
+                alert('无法获取当前位置，请确保AMCL已定位');
+            }
+        }
+
+        // 设置初始位姿
+        function setInitialPose() {
+            const initPosePub = new ROSLIB.Topic({
+                ros: ros,
+                name: '/initialpose',
+                messageType: 'geometry_msgs/PoseWithCovarianceStamped'
+            });
+
+            const pose = new ROSLIB.Message({
+                header: {
+                    frame_id: 'map'
+                },
+                pose: {
+                    pose: {
+                        position: { x: 0.0, y: 0.0, z: 0.0 },
+                        orientation: { x: 0, y: 0, z: 0, w: 1.0 }
+                    },
+                    covariance: [0.25, 0, 0, 0, 0, 0,
+                                 0, 0.25, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0.0685]
+                }
+            });
+
+            initPosePub.publish(pose);
+            alert('初始位姿已设置为 (0, 0)');
+        }
+
+        // 开始巡检
+        function startPatrol() {
+            if (waypoints.length === 0) {
+                alert('请先添加巡检点');
+                return;
+            }
+            isPatrolling = true;
+            currentWaypointIndex = 0;
+            patrolLoop = 0;
+            updatePatrolStatus('巡检中');
+            navigateToWaypoint(currentWaypointIndex);
+        }
+
+        // 停止巡检
+        function stopPatrol() {
+            isPatrolling = false;
+            inspectionPhase = 'idle';
+            updatePatrolStatus('已停止');
+
+            // 发送空速度停止机器人
+            if (cmdVelTopic) {
+                const twist = new ROSLIB.Message({
+                    linear: { x: 0, y: 0, z: 0 },
+                    angular: { x: 0, y: 0, z: 0 }
+                });
+                cmdVelTopic.publish(twist);
+            }
+
+            // 收回升降杆
+            if (liftClient && currentLiftHeight > 0.1) {
+                console.log('停止巡检，收回升降杆');
+                moveLift(0, 0);
+            }
+        }
+
+        // 导航到巡检点
+        function navigateToWaypoint(index) {
+            if (!isPatrolling || index >= waypoints.length) return;
+
+            const wp = waypoints[index];
+            inspectionPhase = 'navigating';  // 设置巡检阶段为导航中
+            updatePatrolStatus('前往 ' + wp.name);
+            updateWaypointList();
+
+            // 使用预初始化的 goalPoseTopic 发布目标
+            if (!goalPoseTopic) {
+                console.error('goalPoseTopic 未初始化');
+                return;
+            }
+
+            // 将角度(度)转换为四元数
+            const yawRad = (wp.yaw || 0) * Math.PI / 180;
+            const qz = Math.sin(yawRad / 2);
+            const qw = Math.cos(yawRad / 2);
+
+            const goalMsg = new ROSLIB.Message({
+                header: {
+                    stamp: {
+                        sec: 0,
+                        nanosec: 0
+                    },
+                    frame_id: 'map'
+                },
+                pose: {
+                    position: { x: wp.x, y: wp.y, z: 0.0 },
+                    orientation: { x: 0.0, y: 0.0, z: qz, w: qw }
+                }
+            });
+
+            goalPoseTopic.publish(goalMsg);
+            console.log('发送目标: ' + wp.name + ' (' + wp.x + ', ' + wp.y + ')');
+            // 导航完成通过订阅 /navigate_to_pose/_action/status 来检测
+        }
+
+        // 检查是否到达目标点
+        function checkArrival(wp, index) {
+            if (!isPatrolling) return;
+
+            const checkInterval = setInterval(() => {
+                if (!isPatrolling) {
+                    clearInterval(checkInterval);
+                    return;
+                }
+
+                const curX = parseFloat(document.getElementById('posX').textContent);
+                const curY = parseFloat(document.getElementById('posY').textContent);
+
+                if (isNaN(curX) || isNaN(curY)) return;
+
+                const distance = Math.sqrt(Math.pow(curX - wp.x, 2) + Math.pow(curY - wp.y, 2));
+
+                if (distance < 0.3) { // 到达阈值 0.3 米
+                    clearInterval(checkInterval);
+                    console.log('到达: ' + wp.name);
+
+                    // 巡检停留
+                    updatePatrolStatus('巡检 ' + wp.name);
+                    setTimeout(() => {
+                        if (!isPatrolling) return;
+
+                        currentWaypointIndex++;
+                        if (currentWaypointIndex >= waypoints.length) {
+                            currentWaypointIndex = 0;
+                            patrolLoop++;
+                        }
+                        updateWaypointList();
+                        navigateToWaypoint(currentWaypointIndex);
+                    }, 2000); // 每个点停留2秒
+                }
+            }, 500); // 每500ms检查一次
+        }
+
+        // 更新巡检状态
+        function updatePatrolStatus(status) {
+            const wpName = waypoints[currentWaypointIndex]?.name || '-';
+            patrolStatusEl.textContent = `状态: ${status} | 当前点: ${wpName} | 循环: ${patrolLoop}`;
+        }
+
+        // 按钮控制
+        document.querySelectorAll('.btn[data-linear]').forEach(btn => {
+            const linear = parseFloat(btn.dataset.linear);
+            const angular = parseFloat(btn.dataset.angular);
+
+            btn.addEventListener('mousedown', () => { btn.classList.add('active'); setVelocity(linear, angular); });
+            btn.addEventListener('mouseup', () => { btn.classList.remove('active'); stopRobot(); });
+            btn.addEventListener('mouseleave', () => { btn.classList.remove('active'); stopRobot(); });
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); btn.classList.add('active'); setVelocity(linear, angular); });
+            btn.addEventListener('touchend', () => { btn.classList.remove('active'); stopRobot(); });
+        });
+
+        document.getElementById('stop').addEventListener('click', stopRobot);
+
+        // 键盘控制
+        const keyMap = {
+            'ArrowUp': 'forward', 'w': 'forward', 'W': 'forward',
+            'ArrowDown': 'backward', 's': 'backward', 'S': 'backward',
+            'ArrowLeft': 'left', 'a': 'left', 'A': 'left',
+            'ArrowRight': 'right', 'd': 'right', 'D': 'right',
+            ' ': 'stop'
+        };
+
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            const btnId = keyMap[e.key];
+            if (!btnId) return;
+            e.preventDefault();
+            if (btnId === 'stop') { stopRobot(); return; }
+            const btn = document.getElementById(btnId);
+            if (btn && !btn.classList.contains('active')) {
+                btn.classList.add('active');
+                setVelocity(parseFloat(btn.dataset.linear), parseFloat(btn.dataset.angular));
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const btnId = keyMap[e.key];
+            if (!btnId || btnId === 'stop') return;
+            const btn = document.getElementById(btnId);
+            if (btn) { btn.classList.remove('active'); stopRobot(); }
+        });
+
+        // 点击状态重连
+        statusEl.addEventListener('click', () => {
+            if (!ros || !ros.isConnected) connect();
+        });
+
+        // 启动
+        connect();
+        initCamera();
+    </script>
+</body>
+</html>

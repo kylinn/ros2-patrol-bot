@@ -1,0 +1,219 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <world name="power_room">
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <physics type="ode">
+      <real_time_update_rate>1000.0</real_time_update_rate>
+      <max_step_size>0.001</max_step_size>
+    </physics>
+
+    <!-- Walls - 25m x 20m room -->
+    <model name="wall_north">
+      <static>true</static>
+      <pose>0 10 1.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>25 0.2 3</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>25 0.2 3</size></box></geometry>
+          <material><ambient>0.9 0.9 0.85 1</ambient></material></visual>
+      </link>
+    </model>
+    <model name="wall_south">
+      <static>true</static>
+      <pose>0 -10 1.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>25 0.2 3</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>25 0.2 3</size></box></geometry>
+          <material><ambient>0.9 0.9 0.85 1</ambient></material></visual>
+      </link>
+    </model>
+    <model name="wall_east">
+      <static>true</static>
+      <pose>12.5 0 1.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>0.2 20 3</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>0.2 20 3</size></box></geometry>
+          <material><ambient>0.9 0.9 0.85 1</ambient></material></visual>
+      </link>
+    </model>
+    <model name="wall_west">
+      <static>true</static>
+      <pose>-12.5 0 1.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>0.2 20 3</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>0.2 20 3</size></box></geometry>
+          <material><ambient>0.9 0.9 0.85 1</ambient></material></visual>
+      </link>
+    </model>
+
+    <!-- Row 1: Y=8 柜子排 + 标记 1A(红) 1B(绿) 1C(蓝) 1D(黄) -->
+    <model name="cabinet_row_1">
+      <static>true</static>
+      <pose>0 8 1.1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>8 0.6 2.2</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>8 0.6 2.2</size></box></geometry>
+          <material><ambient>0.35 0.35 0.4 1</ambient><diffuse>0.4 0.4 0.45 1</diffuse></material></visual>
+        <!-- 标记 1A(红) x=-3, 南面 -->
+        <visual name="mark_1A"><pose>-3 -0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>1 0 0 1</ambient><diffuse>1 0.2 0.2 1</diffuse><emissive>0.5 0 0 1</emissive></material></visual>
+        <!-- 标记 1B(绿) x=-1, 南面 -->
+        <visual name="mark_1B"><pose>-1 -0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>0 1 0 1</ambient><diffuse>0.2 1 0.2 1</diffuse><emissive>0 0.5 0 1</emissive></material></visual>
+        <!-- 标记 1C(蓝) x=1, 南面 -->
+        <visual name="mark_1C"><pose>1 -0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>0 0 1 1</ambient><diffuse>0.2 0.2 1 1</diffuse><emissive>0 0 0.5 1</emissive></material></visual>
+        <!-- 标记 1D(黄) x=3, 南面 -->
+        <visual name="mark_1D"><pose>3 -0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>1 1 0 1</ambient><diffuse>1 1 0.2 1</diffuse><emissive>0.5 0.5 0 1</emissive></material></visual>
+        <!-- 高位仪表盘 1A(白底黑框) x=-3, 高度z=0.85 (实际约1.95m) -->
+        <visual name="meter_1A"><pose>-3 -0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_1A_ring"><pose>-3 -0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+        <!-- 高位仪表盘 1B -->
+        <visual name="meter_1B"><pose>-1 -0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_1B_ring"><pose>-1 -0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+        <!-- 高位仪表盘 1C -->
+        <visual name="meter_1C"><pose>1 -0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_1C_ring"><pose>1 -0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+        <!-- 高位仪表盘 1D -->
+        <visual name="meter_1D"><pose>3 -0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_1D_ring"><pose>3 -0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- Row 2: Y=4 柜子排 + 标记 2A(红) 2B(绿) 2C(蓝) 2D(黄) -->
+    <model name="cabinet_row_2">
+      <static>true</static>
+      <pose>0 4 1.1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>8 0.6 2.2</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>8 0.6 2.2</size></box></geometry>
+          <material><ambient>0.3 0.32 0.38 1</ambient><diffuse>0.35 0.37 0.42 1</diffuse></material></visual>
+        <!-- 标记 2A(红) x=-3 -->
+        <visual name="mark_2A"><pose>-3 0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>1 0 0 1</ambient><diffuse>1 0.2 0.2 1</diffuse><emissive>0.5 0 0 1</emissive></material></visual>
+        <!-- 标记 2B(绿) x=-1 -->
+        <visual name="mark_2B"><pose>-1 0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>0 1 0 1</ambient><diffuse>0.2 1 0.2 1</diffuse><emissive>0 0.5 0 1</emissive></material></visual>
+        <!-- 标记 2C(蓝) x=1 -->
+        <visual name="mark_2C"><pose>1 0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>0 0 1 1</ambient><diffuse>0.2 0.2 1 1</diffuse><emissive>0 0 0.5 1</emissive></material></visual>
+        <!-- 标记 2D(黄) x=3 -->
+        <visual name="mark_2D"><pose>3 0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>1 1 0 1</ambient><diffuse>1 1 0.2 1</diffuse><emissive>0.5 0.5 0 1</emissive></material></visual>
+        <!-- 高位仪表盘 2A-2D (北面 Y+0.31) -->
+        <visual name="meter_2A"><pose>-3 0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_2A_ring"><pose>-3 0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+        <visual name="meter_2B"><pose>-1 0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_2B_ring"><pose>-1 0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+        <visual name="meter_2C"><pose>1 0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_2C_ring"><pose>1 0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+        <visual name="meter_2D"><pose>3 0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_2D_ring"><pose>3 0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- Row 3: Y=-4 柜子排 + 标记 3A(红) 3B(绿) 3C(蓝) 3D(黄) -->
+    <model name="cabinet_row_3">
+      <static>true</static>
+      <pose>0 -4 1.1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>8 0.6 2.2</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>8 0.6 2.2</size></box></geometry>
+          <material><ambient>0.35 0.35 0.4 1</ambient><diffuse>0.4 0.4 0.45 1</diffuse></material></visual>
+        <!-- 标记 3A(红) x=-3 -->
+        <visual name="mark_3A"><pose>-3 0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>1 0 0 1</ambient><diffuse>1 0.2 0.2 1</diffuse><emissive>0.5 0 0 1</emissive></material></visual>
+        <!-- 标记 3B(绿) x=-1 -->
+        <visual name="mark_3B"><pose>-1 0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>0 1 0 1</ambient><diffuse>0.2 1 0.2 1</diffuse><emissive>0 0.5 0 1</emissive></material></visual>
+        <!-- 标记 3C(蓝) x=1 -->
+        <visual name="mark_3C"><pose>1 0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>0 0 1 1</ambient><diffuse>0.2 0.2 1 1</diffuse><emissive>0 0 0.5 1</emissive></material></visual>
+        <!-- 标记 3D(黄) x=3 -->
+        <visual name="mark_3D"><pose>3 0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>1 1 0 1</ambient><diffuse>1 1 0.2 1</diffuse><emissive>0.5 0.5 0 1</emissive></material></visual>
+        <!-- 高位仪表盘 3A-3D (北面) -->
+        <visual name="meter_3A"><pose>-3 0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_3A_ring"><pose>-3 0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+        <visual name="meter_3B"><pose>-1 0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_3B_ring"><pose>-1 0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+        <visual name="meter_3C"><pose>1 0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_3C_ring"><pose>1 0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+        <visual name="meter_3D"><pose>3 0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_3D_ring"><pose>3 0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- Row 4: Y=-8 柜子排 + 标记 4A(红) 4B(绿) 4C(蓝) 4D(黄) -->
+    <model name="cabinet_row_4">
+      <static>true</static>
+      <pose>0 -8 1.1 0 0 0</pose>
+      <link name="link">
+        <collision name="collision"><geometry><box><size>8 0.6 2.2</size></box></geometry></collision>
+        <visual name="visual"><geometry><box><size>8 0.6 2.2</size></box></geometry>
+          <material><ambient>0.3 0.32 0.38 1</ambient><diffuse>0.35 0.37 0.42 1</diffuse></material></visual>
+        <!-- 标记 4A(红) x=-3 -->
+        <visual name="mark_4A"><pose>-3 0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>1 0 0 1</ambient><diffuse>1 0.2 0.2 1</diffuse><emissive>0.5 0 0 1</emissive></material></visual>
+        <!-- 标记 4B(绿) x=-1 -->
+        <visual name="mark_4B"><pose>-1 0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>0 1 0 1</ambient><diffuse>0.2 1 0.2 1</diffuse><emissive>0 0.5 0 1</emissive></material></visual>
+        <!-- 标记 4C(蓝) x=1 -->
+        <visual name="mark_4C"><pose>1 0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>0 0 1 1</ambient><diffuse>0.2 0.2 1 1</diffuse><emissive>0 0 0.5 1</emissive></material></visual>
+        <!-- 标记 4D(黄) x=3 -->
+        <visual name="mark_4D"><pose>3 0.31 0.5 0 0 0</pose><geometry><box><size>0.3 0.02 0.3</size></box></geometry>
+          <material><ambient>1 1 0 1</ambient><diffuse>1 1 0.2 1</diffuse><emissive>0.5 0.5 0 1</emissive></material></visual>
+        <!-- 高位仪表盘 4A-4D (北面) -->
+        <visual name="meter_4A"><pose>-3 0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_4A_ring"><pose>-3 0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+        <visual name="meter_4B"><pose>-1 0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_4B_ring"><pose>-1 0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+        <visual name="meter_4C"><pose>1 0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_4C_ring"><pose>1 0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+        <visual name="meter_4D"><pose>3 0.31 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.12</radius><length>0.02</length></cylinder></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+        <visual name="meter_4D_ring"><pose>3 0.32 0.85 1.57 0 0</pose><geometry><cylinder><radius>0.13</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.15 0.15 0.15 1</diffuse></material></visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>
