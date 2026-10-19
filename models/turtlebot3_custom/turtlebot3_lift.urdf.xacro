@@ -1,0 +1,209 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="turtlebot3_lift">
+
+  <!-- Arguments -->
+  <xacro:arg name="use_sim" default="true"/>
+
+  <!-- ===================== 升降杆系统 (ros2_control) ===================== -->
+
+  <!-- 升降杆底座 - 固定在机器人顶部 -->
+  <link name="lift_base">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.5"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.04" length="0.05"/>
+      </geometry>
+      <material name="dark_grey">
+        <color rgba="0.3 0.3 0.3 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.04" length="0.05"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- 升降杆底座关节 - 连接到 base_link -->
+  <joint name="lift_base_joint" type="fixed">
+    <origin xyz="0 0 0.15" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="lift_base"/>
+  </joint>
+
+  <!-- 升降杆 - 可伸缩 0~2m -->
+  <link name="lift_pole">
+    <inertial>
+      <origin xyz="0 0 0.5" rpy="0 0 0"/>
+      <mass value="0.5"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.0001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0.5" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.025" length="1.0"/>
+      </geometry>
+      <material name="grey">
+        <color rgba="0.6 0.6 0.6 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.5" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.025" length="1.0"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- 升降关节 - prismatic沿Z轴 -->
+  <joint name="lift_joint" type="prismatic">
+    <origin xyz="0 0 0.05" rpy="0 0 0"/>
+    <parent link="lift_base"/>
+    <child link="lift_pole"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0.0" upper="2.0" effort="500" velocity="1.0"/>
+    <dynamics damping="0.5" friction="0.1"/>
+  </joint>
+
+  <!-- 云台底座 - 在升降杆顶端 -->
+  <link name="camera_mount">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.2"/>
+      <inertia ixx="0.0005" ixy="0" ixz="0" iyy="0.0005" iyz="0" izz="0.0005"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.08 0.04"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.15 0.15 0.15 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.08 0.04"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- 云台俯仰关节 - revolute绕Y轴 -->
+  <joint name="tilt_joint" type="revolute">
+    <origin xyz="0 0 1.05" rpy="0 0 0"/>
+    <parent link="lift_pole"/>
+    <child link="camera_mount"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.57" upper="0.5" effort="10" velocity="1.0"/>
+    <dynamics damping="1.0" friction="0.5"/>
+  </joint>
+
+  <!-- 巡检摄像头 - 挂在云台上 -->
+  <link name="inspection_camera_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.1"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.03 0.03"/>
+      </geometry>
+      <material name="camera_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.03 0.03"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="inspection_camera_joint" type="fixed">
+    <origin xyz="0.05 0 0" rpy="0 0 0"/>
+    <parent link="camera_mount"/>
+    <child link="inspection_camera_link"/>
+  </joint>
+
+  <!-- ===================== ros2_control 配置 ===================== -->
+  <ros2_control name="lift_control" type="system">
+    <hardware>
+      <xacro:if value="$(arg use_sim)">
+        <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+      </xacro:if>
+    </hardware>
+
+    <!-- 升降关节 - 位置控制 -->
+    <joint name="lift_joint">
+      <command_interface name="position">
+        <param name="min">0.0</param>
+        <param name="max">2.0</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <!-- 俯仰关节 - 位置控制 -->
+    <joint name="tilt_joint">
+      <command_interface name="position">
+        <param name="min">-1.57</param>
+        <param name="max">0.5</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+
+  <!-- Gazebo ros2_control 插件 -->
+  <gazebo>
+    <plugin filename="libgazebo_ros2_control.so" name="gazebo_ros2_control">
+      <robot_param>robot_description</robot_param>
+      <robot_param_node>robot_state_publisher</robot_param_node>
+      <parameters>/mnt/d/TbbRobot/config/lift_controllers.yaml</parameters>
+    </plugin>
+  </gazebo>
+
+  <!-- 巡检摄像头 Gazebo 传感器 -->
+  <gazebo reference="inspection_camera_link">
+    <sensor name="inspection_camera" type="camera">
+      <always_on>true</always_on>
+      <visualize>true</visualize>
+      <update_rate>15</update_rate>
+      <camera name="inspection_cam">
+        <horizontal_fov>1.2</horizontal_fov>
+        <image>
+          <width>1280</width>
+          <height>720</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>50</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.005</stddev>
+        </noise>
+      </camera>
+      <plugin name="inspection_camera_driver" filename="libgazebo_ros_camera.so">
+        <ros>
+          <remapping>image_raw:=inspection_camera/image_raw</remapping>
+          <remapping>camera_info:=inspection_camera/camera_info</remapping>
+        </ros>
+        <frame_name>inspection_camera_link</frame_name>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+</robot>

@@ -13,6 +13,12 @@
 
 ## 环境要求
 
+### 历史仿真文件补录（2026-10-19）
+
+`scripts/start_ros2_control_test.sh`、`scripts/start_with_ros2_control.sh` 是历史 WSL / ROS 2 Humble 启动脚本，仍使用 `/mnt/d/TbbRobot` 路径。后者在缺少依赖时会执行 `sudo apt` 安装；运行前应按实际环境检查路径和依赖。`models/turtlebot3_custom/turtlebot3_lift.urdf.xacro` 是升降杆片段，依赖外部机器人提供 `base_link`，不是完整的独立模型。
+
+本次入库只通过 Bash 语法和 XML 结构检查，没有运行 Gazebo、ROS 2 或安装依赖，也不代表支持 macOS 原生运行。
+
 - Windows 11 + WSL2
 - Ubuntu 22.04 (WSL)
 - ROS2 Humble
